@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "671845243604",
+    "project_id": "vodafone-tech-app",
+    "storage_bucket": "vodafone-tech-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:671845243604:android:9d9db8b93a8552cf32b941",
+        "android_client_info": {
+          "package_name": "com.example.vodafone_tech_new"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD1erBBVnton6xsoy6CTiPwlxZGsIxYNnY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
