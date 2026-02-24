@@ -34,6 +34,11 @@ class _MonthlyStatsScreenState
     "ديسمبر",
   ];
 
+  /// 🔥 توحيد شكل الحالة
+  String normalizeStatus(String? status) {
+    return (status ?? "").toString().trim().toLowerCase();
+  }
+
   Map<String, dynamic> calculateStats(
       QuerySnapshot snapshot) {
 
@@ -56,19 +61,24 @@ class _MonthlyStatsScreenState
       int month = date.month;
 
       String status =
-      (data["status"] ?? "").toString();
+      normalizeStatus(data["status"]);
 
+      /// ✅ DONE
       if (status == "done") {
         donePerMonth[month] =
             (donePerMonth[month] ?? 0) + 1;
       }
 
-      if (status == "not done") {
+      /// ✅ NOT DONE (بكل أشكاله)
+      if (status == "not_done" ||
+          status == "not done") {
         notDonePerMonth[month] =
             (notDonePerMonth[month] ?? 0) + 1;
       }
 
-      if (status == "done_before") {
+      /// ✅ DONE BEFORE
+      if (status == "done_before" ||
+          status == "done before") {
         doneBeforePerMonth[month] =
             (doneBeforePerMonth[month] ?? 0) + 1;
       }

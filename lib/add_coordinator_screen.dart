@@ -29,6 +29,7 @@ class _AddCoordinatorScreenState
       FirebaseFirestore.instance;
 
   bool isLoading = false;
+  bool isEditMode = false;
 
   InputDecoration customDecoration(String label) {
     return InputDecoration(
@@ -44,7 +45,38 @@ class _AddCoordinatorScreenState
     );
   }
 
-  Future<void> addCoordinator() async {
+  Future<void> checkIfCoordinatorExists(String username) async {
+    if (username.isEmpty) return;
+
+    final doc = await _firestore
+        .collection("coordinators")
+        .doc(username.toUpperCase())
+        .get();
+
+    if (doc.exists) {
+      final data = doc.data()!;
+
+      _nameArController.text = data["name_ar"] ?? "";
+      _nameEnController.text = data["name_en"] ?? "";
+      _phoneController.text = data["phone"] ?? "";
+      _emailController.text = data["email"] ?? "";
+
+      setState(() {
+        isEditMode = true;
+      });
+    } else {
+      _nameArController.clear();
+      _nameEnController.clear();
+      _phoneController.clear();
+      _emailController.clear();
+
+      setState(() {
+        isEditMode = false;
+      });
+    }
+  }
+
+  Future<void> addOrUpdateCoordinator() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => isLoading = true);
@@ -53,40 +85,43 @@ class _AddCoordinatorScreenState
       final username =
       _usernameController.text.trim().toUpperCase();
 
-      final doc = await _firestore
-          .collection("coordinators")
-          .doc(username)
-          .get();
+      final docRef =
+      _firestore.collection("coordinators").doc(username);
+
+      final doc = await docRef.get();
 
       if (doc.exists) {
+        await docRef.update({
+          "name_ar": _nameArController.text.trim(),
+          "name_en": _nameEnController.text.trim(),
+          "phone": _phoneController.text.trim(),
+          "email": _emailController.text.trim(),
+          "updatedAt": FieldValue.serverTimestamp(),
+        });
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text("Username موجود بالفعل"),
-            backgroundColor: Colors.orange,
+            content: Text("تم تعديل بيانات الكوردينيتور"),
+            backgroundColor: Colors.blue,
           ),
         );
-        setState(() => isLoading = false);
-        return;
+      } else {
+        await docRef.set({
+          "username": username,
+          "name_ar": _nameArController.text.trim(),
+          "name_en": _nameEnController.text.trim(),
+          "phone": _phoneController.text.trim(),
+          "email": _emailController.text.trim(),
+          "createdAt": FieldValue.serverTimestamp(),
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("تم إضافة الكوردينيتور بنجاح"),
+            backgroundColor: Colors.green,
+          ),
+        );
       }
-
-      await _firestore
-          .collection("coordinators")
-          .doc(username)
-          .set({
-        "username": username,
-        "name_ar": _nameArController.text.trim(),
-        "name_en": _nameEnController.text.trim(),
-        "phone": _phoneController.text.trim(),
-        "email": _emailController.text.trim(),
-        "createdAt": FieldValue.serverTimestamp(),
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("تم إضافة الكوردينيتور بنجاح"),
-          backgroundColor: Colors.green,
-        ),
-      );
 
       Navigator.pop(context);
     } catch (e) {
@@ -131,6 +166,9 @@ class _AddCoordinatorScreenState
                   controller: _usernameController,
                   decoration:
                   customDecoration("Username"),
+                  onChanged: (value) {
+                    checkIfCoordinatorExists(value.trim());
+                  },
                   validator: (value) {
                     if (value == null ||
                         value.trim().isEmpty) {
@@ -221,7 +259,7 @@ class _AddCoordinatorScreenState
                       ),
                     ),
                     onPressed:
-                    isLoading ? null : addCoordinator,
+                    isLoading ? null : addOrUpdateCoordinator,
                     child: isLoading
                         ? const SizedBox(
                       height: 22,
@@ -232,9 +270,11 @@ class _AddCoordinatorScreenState
                         strokeWidth: 2,
                       ),
                     )
-                        : const Text(
-                      "إضافة الكوردينيتور",
-                      style: TextStyle(
+                        : Text(
+                      isEditMode
+                          ? "تعديل الكوردينيتور"
+                          : "إضافة الكوردينيتور",
+                      style: const TextStyle(
                         color: Colors.black,
                         fontWeight:
                         FontWeight.bold,

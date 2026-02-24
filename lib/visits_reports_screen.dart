@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'package:excel/excel.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'dart:io';
 
 class VisitsReportsScreen extends StatefulWidget {
   const VisitsReportsScreen({super.key});
@@ -26,26 +29,22 @@ class _VisitsReportsScreenState
   Query _buildQuery() {
     Query query = firestore.collection("visits");
 
-    /// فلترة فني
     if (selectedTechnician != null &&
         selectedTechnician!.isNotEmpty) {
       query = query.where("technicianId",
           isEqualTo: selectedTechnician);
     }
 
-    /// فلترة حالة
     if (selectedStatus != "all") {
       query =
           query.where("status", isEqualTo: selectedStatus);
     }
 
-    /// بحث رقم العميل
     if (searchLandline.isNotEmpty) {
       query = query.where("landline",
           isEqualTo: searchLandline);
     }
 
-    /// فلترة تاريخ (واحدة بس)
     if (todayOnly) {
       final now = DateTime.now();
       final start =
@@ -82,11 +81,75 @@ class _VisitsReportsScreenState
           Timestamp.fromDate(end));
     }
 
-    /// الترتيب في الآخر دايماً
     query =
         query.orderBy("createdAt", descending: true);
 
     return query;
+  }
+
+  /// ✅ تصدير Excel ويتحفظ في Downloads مباشرة
+  Future<void> exportToExcel() async {
+
+    if (Platform.isAndroid) {
+      var status = await Permission.manageExternalStorage.request();
+      if (!status.isGranted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("يجب منح إذن الوصول للملفات")),
+        );
+        return;
+      }
+    }
+
+    final snapshot = await _buildQuery().get();
+
+    if (snapshot.docs.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("لا يوجد بيانات للتصدير")),
+      );
+      return;
+    }
+
+    var excel = Excel.createExcel();
+    Sheet sheet = excel['Visits Reports'];
+
+    sheet.appendRow([
+      "Landline",
+      "Technician",
+      "Visit Type",
+      "Status",
+      "Notes",
+      "Date"
+    ]);
+
+    for (var doc in snapshot.docs) {
+      final data = doc.data() as Map<String, dynamic>;
+
+      final ts = data["createdAt"] as Timestamp?;
+      String date = "";
+      if (ts != null) {
+        date = DateFormat("yyyy-MM-dd HH:mm")
+            .format(ts.toDate());
+      }
+
+      sheet.appendRow([
+        data["landline"] ?? "",
+        data["technicianName"] ?? "",
+        data["visitType"] ?? "",
+        _translateStatus(data["status"]),
+        data["notes"] ?? "",
+        date
+      ]);
+    }
+
+    final downloadPath =
+        "/storage/emulated/0/Download/Visits_Report_${DateTime.now().millisecondsSinceEpoch}.xlsx";
+
+    final file = File(downloadPath);
+    await file.writeAsBytes(excel.save()!);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("تم حفظ الملف في Downloads")),
+    );
   }
 
   @override
@@ -96,6 +159,12 @@ class _VisitsReportsScreenState
     return Scaffold(
       appBar: AppBar(
         title: const Text("تقارير الزيارات"),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.download),
+            onPressed: exportToExcel,
+          )
+        ],
       ),
       body: Column(
         children: [
@@ -106,7 +175,6 @@ class _VisitsReportsScreenState
             child: Column(
               children: [
 
-                /// اختيار الفني
                 StreamBuilder<QuerySnapshot>(
                   stream: firestore
                       .collection("users")
@@ -159,7 +227,6 @@ class _VisitsReportsScreenState
 
                 const SizedBox(height: 10),
 
-                /// الحالة
                 DropdownButtonFormField<String>(
                   value: selectedStatus,
                   items: const [
@@ -188,7 +255,6 @@ class _VisitsReportsScreenState
 
                 const SizedBox(height: 10),
 
-                /// بحث رقم العميل
                 TextField(
                   decoration:
                   const InputDecoration(
@@ -209,7 +275,6 @@ class _VisitsReportsScreenState
 
                 const SizedBox(height: 10),
 
-                /// تقرير اليوم
                 ElevatedButton(
                   onPressed: () {
                     setState(() {
@@ -224,7 +289,6 @@ class _VisitsReportsScreenState
 
                 const SizedBox(height: 10),
 
-                /// من / إلى
                 Row(
                   children: [
                     Expanded(
@@ -314,7 +378,6 @@ class _VisitsReportsScreenState
             ),
           ),
 
-          /// عرض البيانات
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: visitsQuery.snapshots(),

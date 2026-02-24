@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter/services.dart'; // 👈 جديد للنسخ
 
 class CoordinatorSearchScreen extends StatefulWidget {
   const CoordinatorSearchScreen({super.key});
@@ -67,31 +68,38 @@ class _CoordinatorSearchScreenState
     });
   }
 
-  /// 📞 اتصال مباشر مع Runtime Permission
+  /// 📞 اتصال مباشر
   Future<void> makePhoneCall(String phoneNumber) async {
 
-    var status = await Permission.phone.status;
+    try {
+      var status = await Permission.phone.status;
 
-    if (!status.isGranted) {
-      status = await Permission.phone.request();
-    }
-
-    if (status.isGranted) {
-
-      final Uri callUri = Uri(
-        scheme: 'tel',
-        path: phoneNumber,
-      );
-
-      if (await canLaunchUrl(callUri)) {
-        await launchUrl(callUri);
+      if (!status.isGranted) {
+        status = await Permission.phone.request();
       }
 
-    } else {
+      if (status.isGranted) {
 
+        final Uri callUri = Uri.parse("tel:$phoneNumber");
+
+        await launchUrl(
+          callUri,
+          mode: LaunchMode.externalApplication,
+        );
+
+      } else {
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("تم رفض إذن الاتصال"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("تم رفض إذن الاتصال"),
+          content: Text("فشل إجراء الاتصال"),
           backgroundColor: Colors.red,
         ),
       );
@@ -101,14 +109,33 @@ class _CoordinatorSearchScreenState
   /// 📧 إرسال إيميل
   Future<void> sendEmail(String email) async {
 
-    final Uri emailUri = Uri(
-      scheme: 'mailto',
-      path: email,
-    );
+    try {
+      final Uri emailUri = Uri.parse("mailto:$email");
 
-    if (await canLaunchUrl(emailUri)) {
-      await launchUrl(emailUri);
+      await launchUrl(
+        emailUri,
+        mode: LaunchMode.externalApplication,
+      );
+
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("لا يوجد تطبيق بريد مثبت على الجهاز"),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
+  }
+
+  /// 📋 نسخ نص
+  void copyToClipboard(String text, String message) {
+    Clipboard.setData(ClipboardData(text: text));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.green,
+      ),
+    );
   }
 
   InputDecoration customDecoration(String label) {
@@ -142,7 +169,6 @@ class _CoordinatorSearchScreenState
         child: Column(
           children: [
 
-            /// 🔎 مربع البحث
             TextField(
               controller: searchController,
               decoration:
@@ -191,6 +217,7 @@ class _CoordinatorSearchScreenState
                       CrossAxisAlignment.start,
                       children: [
 
+                        /// الاسم عربي
                         Text(
                           "الاسم بالعربي:",
                           style: TextStyle(
@@ -207,6 +234,7 @@ class _CoordinatorSearchScreenState
 
                         const SizedBox(height: 15),
 
+                        /// الاسم انجليزي
                         Text(
                           "الاسم بالإنجليزي:",
                           style: TextStyle(
@@ -223,6 +251,7 @@ class _CoordinatorSearchScreenState
 
                         const SizedBox(height: 15),
 
+                        /// رقم الموبايل + نسخ
                         Text(
                           "رقم الموبايل:",
                           style: TextStyle(
@@ -231,16 +260,37 @@ class _CoordinatorSearchScreenState
                             color: Colors.grey[700],
                           ),
                         ),
-                        Text(
-                          coordinatorData!["phone"]
-                              ?.toString() ??
-                              "",
-                          style:
-                          const TextStyle(fontSize: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                coordinatorData!["phone"]
+                                    ?.toString() ??
+                                    "",
+                                style: const TextStyle(
+                                    fontSize: 16),
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.copy),
+                              onPressed: () {
+                                final phone =
+                                    coordinatorData!["phone"]
+                                        ?.toString() ??
+                                        "";
+                                if (phone.isNotEmpty) {
+                                  copyToClipboard(
+                                      phone,
+                                      "تم نسخ رقم الموبايل");
+                                }
+                              },
+                            )
+                          ],
                         ),
 
                         const SizedBox(height: 15),
 
+                        /// الإيميل + نسخ
                         Text(
                           "البريد الإلكتروني:",
                           style: TextStyle(
@@ -249,15 +299,32 @@ class _CoordinatorSearchScreenState
                             color: Colors.grey[700],
                           ),
                         ),
-                        Text(
-                          coordinatorData!["email"] ?? "",
-                          style:
-                          const TextStyle(fontSize: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                coordinatorData!["email"] ?? "",
+                                style: const TextStyle(
+                                    fontSize: 16),
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.copy),
+                              onPressed: () {
+                                final email =
+                                    coordinatorData!["email"] ?? "";
+                                if (email.isNotEmpty) {
+                                  copyToClipboard(
+                                      email,
+                                      "تم نسخ البريد الإلكتروني");
+                                }
+                              },
+                            )
+                          ],
                         ),
 
                         const Spacer(),
 
-                        /// أزرار الاتصال والإيميل
                         Row(
                           children: [
 
@@ -276,8 +343,7 @@ class _CoordinatorSearchScreenState
                                           ?.toString() ??
                                           "";
                                   if (phone.isNotEmpty) {
-                                    makePhoneCall(
-                                        phone);
+                                    makePhoneCall(phone);
                                   }
                                 },
                                 icon: const Icon(
@@ -308,8 +374,7 @@ class _CoordinatorSearchScreenState
                                       coordinatorData![
                                       "email"] ??
                                           "";
-                                  if (email
-                                      .isNotEmpty) {
+                                  if (email.isNotEmpty) {
                                     sendEmail(email);
                                   }
                                 },
