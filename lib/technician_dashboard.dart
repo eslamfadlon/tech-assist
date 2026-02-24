@@ -6,6 +6,7 @@ import 'monthly_stats_screen.dart';
 import 'coordinator_search_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'login_screen.dart';
+import 'edit_visit_screen.dart'; // ✅ استيراد شاشة التعديل
 
 Future<Position> _determinePosition() async {
   bool serviceEnabled;
@@ -67,7 +68,6 @@ class _TechnicianDashboardState extends State<TechnicianDashboard> {
   void initState() {
     super.initState();
 
-    /// 🔴 مراقبة حالة الحساب في الوقت الحقيقي
     _userStream = _firestore
         .collection("users")
         .doc(widget.technicianId)
@@ -214,6 +214,7 @@ class _TechnicianDashboardState extends State<TechnicianDashboard> {
 
               const SizedBox(height: 25),
 
+              /// تسجيل زيارة
               ElevatedButton(
                 style: mainButtonStyle(),
                 onPressed: isLoading
@@ -237,7 +238,8 @@ class _TechnicianDashboardState extends State<TechnicianDashboard> {
                     return;
                   }
 
-                  setState(() => isLoading = true);
+                  setState(
+                          () => isLoading = true);
 
                   try {
                     Position position =
@@ -248,13 +250,16 @@ class _TechnicianDashboardState extends State<TechnicianDashboard> {
                       technicianId:
                       widget.technicianId,
                       landline:
-                      landlineController.text
+                      landlineController
+                          .text
                           .trim(),
-                      visitType: selectedType,
+                      visitType:
+                      selectedType,
                       updateStatus:
                       selectedUpdate,
                       details:
-                      detailsController.text
+                      detailsController
+                          .text
                           .trim(),
                       latitude:
                       position.latitude,
@@ -286,19 +291,30 @@ class _TechnicianDashboardState extends State<TechnicianDashboard> {
                     );
                   }
 
-                  setState(() => isLoading = false);
+                  setState(
+                          () => isLoading = false);
                 },
-                child: isLoading
-                    ? const SizedBox(
-                  height: 20,
-                  width: 20,
-                  child:
-                  CircularProgressIndicator(
-                    color: Colors.black,
-                    strokeWidth: 2,
-                  ),
-                )
-                    : const Text("تسجيل زيارة"),
+                child: const Text("تسجيل زيارة"),
+              ),
+
+              const SizedBox(height: 10),
+
+              /// ✅ زرار التعديل الجديد (يفتح شاشة مستقلة)
+              ElevatedButton(
+                style: mainButtonStyle(),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => EditVisitScreen(
+                        technicianId:
+                        widget.technicianId,
+                      ),
+                    ),
+                  );
+                },
+                child:
+                const Text("تعديل زيارة"),
               ),
 
               const SizedBox(height: 20),
@@ -317,7 +333,8 @@ class _TechnicianDashboardState extends State<TechnicianDashboard> {
                     ),
                   );
                 },
-                child: const Text("بحث عن زيارة"),
+                child:
+                const Text("بحث عن زيارة"),
               ),
 
               const SizedBox(height: 10),
@@ -353,8 +370,8 @@ class _TechnicianDashboardState extends State<TechnicianDashboard> {
                     ),
                   );
                 },
-                child: const Text(
-                    "بحث عن الكوردينيتور"),
+                child:
+                const Text("بحث عن الكوردينيتور"),
               ),
             ],
           ),

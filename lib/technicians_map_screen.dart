@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class TechniciansMapScreen extends StatefulWidget {
-  final String? focusTechnicianId; // 👈 الجديد
+  final String? focusTechnicianId;
 
   const TechniciansMapScreen({
     super.key,
@@ -53,7 +53,7 @@ class _TechniciansMapScreenState
       }
 
       Set<Marker> markers = {};
-      LatLng? focusPosition; // 👈 هنستخدمها لو في فني مطلوب
+      LatLng? focusPosition;
 
       for (var entry in latestVisits.entries) {
         final data =
@@ -61,6 +61,8 @@ class _TechniciansMapScreenState
 
         final lat = data["latitude"];
         final lng = data["longitude"];
+        final technicianName =
+            data["technicianName"] ?? "فني";
 
         if (lat != null && lng != null) {
 
@@ -71,12 +73,12 @@ class _TechniciansMapScreenState
               markerId: MarkerId(entry.key),
               position: position,
               infoWindow: InfoWindow(
-                title: "Technician ID: ${entry.key}",
+                title: technicianName, // ✅ الاسم بدل الـ ID
+                snippet: "آخر موقع مسجل",
               ),
             ),
           );
 
-          // 👇 لو ده الفني المطلوب
           if (widget.focusTechnicianId != null &&
               widget.focusTechnicianId == entry.key) {
             focusPosition = position;
@@ -89,13 +91,12 @@ class _TechniciansMapScreenState
         _markers.addAll(markers);
       });
 
-      // ننتظر لحظة بسيطة علشان الخريطة تبقى جاهزة
-      await Future.delayed(const Duration(milliseconds: 300));
+      await Future.delayed(
+          const Duration(milliseconds: 300));
 
       if (_mapController != null && _markers.isNotEmpty) {
 
         if (focusPosition != null) {
-          // 👈 لو جايين نركز على فني معين
           _mapController!.animateCamera(
             CameraUpdate.newLatLngZoom(
               focusPosition,
@@ -103,7 +104,6 @@ class _TechniciansMapScreenState
             ),
           );
         } else {
-          // 👈 الوضع العادي
           final firstMarker = _markers.first;
 
           _mapController!.animateCamera(

@@ -16,14 +16,12 @@ class AttendanceService {
   }) async {
 
     final now = DateTime.now();
+
     final todayId =
         "${technicianId}_${now.year}-${now.month}-${now.day}";
 
     final attendanceRef =
     _firestore.collection("attendance").doc(todayId);
-
-    final visitRef =
-    _firestore.collection("visits").doc();
 
     final attendanceSnapshot = await attendanceRef.get();
 
@@ -54,10 +52,62 @@ class AttendanceService {
       });
     }
 
-    /// ✅ تسجيل الزيارة بالشكل المتفق عليه
-    await visitRef.set({
+    /// 🔥 نحدد بداية ونهاية اليوم
+    final startOfDay =
+    DateTime(now.year, now.month, now.day);
+
+    final endOfDay =
+    DateTime(now.year, now.month, now.day, 23, 59, 59);
+
+    /// 🔎 1️⃣ هل الفني نفسه سجل الرقم ده النهارده؟
+    final sameTechVisit = await _firestore
+        .collection("visits")
+        .where("technicianId", isEqualTo: technicianId)
+        .where("landline", isEqualTo: landline)
+        .where(
+      "createdAt",
+      isGreaterThanOrEqualTo:
+      Timestamp.fromDate(startOfDay),
+    )
+        .where(
+      "createdAt",
+      isLessThanOrEqualTo:
+      Timestamp.fromDate(endOfDay),
+    )
+        .limit(1)
+        .get();
+
+    if (sameTechVisit.docs.isNotEmpty) {
+      throw Exception(
+          "تم تسجيل زيارة لهذا الرقم اليوم بالفعل — استخدم زر تعديل الزيارة");
+    }
+
+    /// 🔎 2️⃣ هل فني تاني سجل نفس الرقم النهارده؟
+    final otherTechVisit = await _firestore
+        .collection("visits")
+        .where("landline", isEqualTo: landline)
+        .where(
+      "createdAt",
+      isGreaterThanOrEqualTo:
+      Timestamp.fromDate(startOfDay),
+    )
+        .where(
+      "createdAt",
+      isLessThanOrEqualTo:
+      Timestamp.fromDate(endOfDay),
+    )
+        .limit(1)
+        .get();
+
+    if (otherTechVisit.docs.isNotEmpty) {
+      throw Exception(
+          "هذا العميل تم تسجيل زيارة له اليوم بواسطة فني آخر");
+    }
+
+    /// ➕ إنشاء زيارة جديدة فقط
+    await _firestore.collection("visits").add({
       "technicianId": technicianId,
-      "technicianName": technicianName, // 👈 الجديد
+      "technicianName": technicianName,
       "landline": landline,
       "visitType": visitType,
       "status": updateStatus,

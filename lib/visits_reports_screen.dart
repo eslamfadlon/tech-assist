@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:excel/excel.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'dart:io';
 
 class VisitsReportsScreen extends StatefulWidget {
@@ -87,7 +88,19 @@ class _VisitsReportsScreenState
     return query;
   }
 
-  /// ✅ تصدير Excel ويتحفظ في Downloads مباشرة
+  Future<void> _openMap(double lat, double lng) async {
+    final Uri googleUrl =
+    Uri.parse("https://www.google.com/maps/search/?api=1&query=$lat,$lng");
+
+    if (await canLaunchUrl(googleUrl)) {
+      await launchUrl(
+        googleUrl,
+        mode: LaunchMode.externalApplication,
+      );
+    }
+  }
+
+  /// ✅ تصدير Excel
   Future<void> exportToExcel() async {
 
     if (Platform.isAndroid) {
@@ -118,7 +131,9 @@ class _VisitsReportsScreenState
       "Visit Type",
       "Status",
       "Notes",
-      "Date"
+      "Date",
+      "Latitude",
+      "Longitude"
     ]);
 
     for (var doc in snapshot.docs) {
@@ -137,7 +152,9 @@ class _VisitsReportsScreenState
         data["visitType"] ?? "",
         _translateStatus(data["status"]),
         data["notes"] ?? "",
-        date
+        date,
+        data["latitude"]?.toString() ?? "",
+        data["longitude"]?.toString() ?? "",
       ]);
     }
 
@@ -148,7 +165,7 @@ class _VisitsReportsScreenState
     await file.writeAsBytes(excel.save()!);
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("تم حفظ الملف في Downloads")),
+      const SnackBar(content: Text("تم حفظ الملف في Downloads")),
     );
   }
 
@@ -169,7 +186,7 @@ class _VisitsReportsScreenState
       body: Column(
         children: [
 
-          /// 🔽 الفلاتر
+          /// 🔽 الفلاتر (بدون أي تغيير)
           Padding(
             padding: const EdgeInsets.all(10),
             child: Column(
@@ -460,6 +477,9 @@ class _VisitsReportsScreenState
                           as Map<String,
                               dynamic>;
 
+                          final lat = data["latitude"];
+                          final lng = data["longitude"];
+
                           final ts =
                           data["createdAt"]
                           as Timestamp?;
@@ -495,6 +515,20 @@ class _VisitsReportsScreenState
                                       "ملاحظات: ${data["notes"] ?? ""}"),
                                   Text(
                                       "التاريخ: $date"),
+                                  if (lat != null && lng != null) ...[
+                                    const SizedBox(height: 5),
+                                    Text("الإحداثيات: $lat , $lng"),
+                                    TextButton.icon(
+                                      onPressed: () {
+                                        _openMap(
+                                          double.parse(lat.toString()),
+                                          double.parse(lng.toString()),
+                                        );
+                                      },
+                                      icon: const Icon(Icons.map),
+                                      label: const Text("فتح في الخريطة"),
+                                    ),
+                                  ],
                                 ],
                               ),
                               trailing: Icon(
