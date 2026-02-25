@@ -1,14 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'technicians_map_screen.dart';
 import 'add_technician_screen.dart';
 import 'visits_reports_screen.dart';
 import 'add_coordinator_screen.dart';
+import 'login_screen.dart';
 
 class AdminDashboard extends StatelessWidget {
   final String adminId;
 
   const AdminDashboard({super.key, required this.adminId});
+
+  // 🔴 تسجيل الخروج
+  Future<void> _logout(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear(); // مسح بيانات الجلسة
+
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const LoginScreen(),
+      ),
+          (route) => false,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -21,6 +37,14 @@ class AdminDashboard extends StatelessWidget {
           "لوحة تحكم الأدمن - $adminId",
           style: const TextStyle(color: Colors.black),
         ),
+
+        // ✅ زر تسجيل الخروج
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.black),
+            onPressed: () => _logout(context),
+          ),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(20),
@@ -190,12 +214,10 @@ class TechniciansListScreen extends StatelessWidget {
                   title: Text(data["name"] ?? "بدون اسم"),
                   subtitle: Text("ID: ${data["id"] ?? ""}"),
 
-                  // 👇 ده الجزء الاحترافي الجديد
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
 
-                      // حالة التفعيل
                       Icon(
                         isActive
                             ? Icons.check_circle
@@ -207,7 +229,6 @@ class TechniciansListScreen extends StatelessWidget {
 
                       const SizedBox(width: 8),
 
-                      // زر التعديل ✏️
                       IconButton(
                         icon: const Icon(Icons.edit,
                             color: Colors.blue),
@@ -227,7 +248,6 @@ class TechniciansListScreen extends StatelessWidget {
                     ],
                   ),
 
-                  // الضغط العادي = الخريطة
                   onTap: () {
                     Navigator.push(
                       context,

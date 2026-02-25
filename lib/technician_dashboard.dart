@@ -6,7 +6,8 @@ import 'monthly_stats_screen.dart';
 import 'coordinator_search_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'login_screen.dart';
-import 'edit_visit_screen.dart'; // ✅ استيراد شاشة التعديل
+import 'edit_visit_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // ✅ جديد
 
 Future<Position> _determinePosition() async {
   bool serviceEnabled;
@@ -100,6 +101,20 @@ class _TechnicianDashboardState extends State<TechnicianDashboard> {
     });
   }
 
+  /// ✅ تسجيل الخروج
+  Future<void> _logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const LoginScreen(),
+      ),
+          (route) => false,
+    );
+  }
+
   InputDecoration customInputDecoration(String label) {
     return InputDecoration(
       labelText: label,
@@ -145,6 +160,14 @@ class _TechnicianDashboardState extends State<TechnicianDashboard> {
             fontWeight: FontWeight.bold,
           ),
         ),
+
+        /// ✅ زرار تسجيل الخروج
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.black),
+            onPressed: _logout,
+          )
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
@@ -214,7 +237,6 @@ class _TechnicianDashboardState extends State<TechnicianDashboard> {
 
               const SizedBox(height: 25),
 
-              /// تسجيل زيارة
               ElevatedButton(
                 style: mainButtonStyle(),
                 onPressed: isLoading
@@ -299,7 +321,6 @@ class _TechnicianDashboardState extends State<TechnicianDashboard> {
 
               const SizedBox(height: 10),
 
-              /// ✅ زرار التعديل الجديد (يفتح شاشة مستقلة)
               ElevatedButton(
                 style: mainButtonStyle(),
                 onPressed: () {
