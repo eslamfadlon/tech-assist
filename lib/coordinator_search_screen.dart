@@ -2,10 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:flutter/services.dart'; // 👈 جديد للنسخ
+import 'package:flutter/services.dart';
+import 'rating_screen.dart';
 
 class CoordinatorSearchScreen extends StatefulWidget {
-  const CoordinatorSearchScreen({super.key});
+  final String technicianId;
+  final String technicianName;
+
+  const CoordinatorSearchScreen({
+    super.key,
+    required this.technicianId,
+    required this.technicianName,
+  });
 
   @override
   State<CoordinatorSearchScreen> createState() =>
@@ -15,16 +23,12 @@ class CoordinatorSearchScreen extends StatefulWidget {
 class _CoordinatorSearchScreenState
     extends State<CoordinatorSearchScreen> {
 
-  final TextEditingController searchController =
-  TextEditingController();
-
+  String? selectedCoordinator;
   bool isLoading = false;
   Map<String, dynamic>? coordinatorData;
 
-  /// 🔍 البحث عن الكوردينيتور
   Future<void> searchCoordinator() async {
-
-    if (searchController.text.trim().isEmpty) return;
+    if (selectedCoordinator == null) return;
 
     setState(() {
       isLoading = true;
@@ -32,29 +36,18 @@ class _CoordinatorSearchScreenState
     });
 
     try {
-
-      final username =
-      searchController.text.trim().toUpperCase();
-
       final doc = await FirebaseFirestore.instance
           .collection("coordinators")
-          .doc(username)
+          .doc(selectedCoordinator)
           .get();
 
       if (doc.exists) {
         setState(() {
           coordinatorData = doc.data();
         });
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("لم يتم العثور على الكوردينيتور"),
-            backgroundColor: Colors.orange,
-          ),
-        );
       }
-
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("حدث خطأ: $e"),
@@ -63,71 +56,27 @@ class _CoordinatorSearchScreenState
       );
     }
 
-    setState(() {
-      isLoading = false;
-    });
+    if (mounted) {
+      setState(() {
+        isLoading = false;
+      });
+    }
   }
 
-  /// 📞 اتصال مباشر
   Future<void> makePhoneCall(String phoneNumber) async {
+    var status = await Permission.phone.request();
 
-    try {
-      var status = await Permission.phone.status;
-
-      if (!status.isGranted) {
-        status = await Permission.phone.request();
-      }
-
-      if (status.isGranted) {
-
-        final Uri callUri = Uri.parse("tel:$phoneNumber");
-
-        await launchUrl(
-          callUri,
-          mode: LaunchMode.externalApplication,
-        );
-
-      } else {
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("تم رفض إذن الاتصال"),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("فشل إجراء الاتصال"),
-          backgroundColor: Colors.red,
-        ),
-      );
+    if (status.isGranted) {
+      final Uri callUri = Uri.parse("tel:$phoneNumber");
+      await launchUrl(callUri, mode: LaunchMode.externalApplication);
     }
   }
 
-  /// 📧 إرسال إيميل
   Future<void> sendEmail(String email) async {
-
-    try {
-      final Uri emailUri = Uri.parse("mailto:$email");
-
-      await launchUrl(
-        emailUri,
-        mode: LaunchMode.externalApplication,
-      );
-
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("لا يوجد تطبيق بريد مثبت على الجهاز"),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
+    final Uri emailUri = Uri.parse("mailto:$email");
+    await launchUrl(emailUri, mode: LaunchMode.externalApplication);
   }
 
-  /// 📋 نسخ نص
   void copyToClipboard(String text, String message) {
     Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(context).showSnackBar(
@@ -138,18 +87,18 @@ class _CoordinatorSearchScreenState
     );
   }
 
-  InputDecoration customDecoration(String label) {
-    return InputDecoration(
-      labelText: label,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderSide: BorderSide(
-          color: Colors.red.shade400,
-          width: 2,
+  /// ⭐ هنا أهم تعديل
+  void openRatingScreen() {
+    if (selectedCoordinator == null) return;
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => RatingScreen(
+          coordinatorUsername: selectedCoordinator!.trim(),
+          technicianId: widget.technicianId.trim(),
+          technicianName: widget.technicianName.trim(),
         ),
-        borderRadius: BorderRadius.circular(12),
       ),
     );
   }
@@ -163,249 +112,239 @@ class _CoordinatorSearchScreenState
         title: const Text("بحث عن بيانات الكوردينيتور"),
         centerTitle: true,
       ),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Colors.red.shade400,
+              Colors.red.shade300,
+              Colors.red.shade200,
+            ],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
 
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
+              /// Dropdown
+              StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection("coordinators")
+                    .snapshots(),
+                builder: (context, snapshot) {
 
-            TextField(
-              controller: searchController,
-              decoration:
-              customDecoration("ادخل Username الكوردينيتور"),
-            ),
+                  if (!snapshot.hasData) {
+                    return const CircularProgressIndicator();
+                  }
 
-            const SizedBox(height: 15),
+                  var docs = snapshot.data!.docs;
 
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red.shade400,
-                  padding:
-                  const EdgeInsets.symmetric(vertical: 14),
-                ),
-                onPressed: searchCoordinator,
-                child: const Text(
-                  "بحث",
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
+                  return DropdownButtonFormField<String>(
+                    value: selectedCoordinator,
+                    dropdownColor: Colors.white,
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: Colors.white,
+                      labelText: "اختر الكوردينيتور",
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    items: docs.map((doc) {
+                      return DropdownMenuItem<String>(
+                        value: doc.id,
+                        child: Text(doc.id),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        selectedCoordinator = value;
+                      });
+                    },
+                  );
+                },
+              ),
+
+              const SizedBox(height: 15),
+
+              /// زرار بحث
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.black,
+                    padding:
+                    const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius:
+                      BorderRadius.circular(14),
+                    ),
+                  ),
+                  onPressed: searchCoordinator,
+                  child: const Text(
+                    "بحث",
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
-            ),
 
-            const SizedBox(height: 20),
+              const SizedBox(height: 20),
 
-            if (isLoading)
-              const CircularProgressIndicator(),
+              if (isLoading)
+                const CircularProgressIndicator(),
 
-            if (!isLoading && coordinatorData != null)
-              Expanded(
-                child: Card(
-                  elevation: 6,
-                  shape: RoundedRectangleBorder(
-                    borderRadius:
-                    BorderRadius.circular(16),
-                  ),
-                  child: Padding(
-                    padding:
-                    const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment:
-                      CrossAxisAlignment.start,
-                      children: [
+              if (!isLoading && coordinatorData != null)
+                Expanded(
+                  child: Card(
+                    elevation: 8,
+                    shape: RoundedRectangleBorder(
+                      borderRadius:
+                      BorderRadius.circular(18),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment:
+                        CrossAxisAlignment.start,
+                        children: [
 
-                        /// الاسم عربي
-                        Text(
-                          "الاسم بالعربي:",
-                          style: TextStyle(
-                            fontWeight:
-                            FontWeight.bold,
-                            color: Colors.grey[700],
-                          ),
-                        ),
-                        Text(
-                          coordinatorData!["name_ar"] ?? "",
-                          style:
-                          const TextStyle(fontSize: 16),
-                        ),
+                          buildInfo("الاسم بالعربي:",
+                              coordinatorData!["name_ar"] ?? ""),
 
-                        const SizedBox(height: 15),
+                          buildInfo("الاسم بالإنجليزي:",
+                              coordinatorData!["name_en"] ?? ""),
 
-                        /// الاسم انجليزي
-                        Text(
-                          "الاسم بالإنجليزي:",
-                          style: TextStyle(
-                            fontWeight:
-                            FontWeight.bold,
-                            color: Colors.grey[700],
-                          ),
-                        ),
-                        Text(
-                          coordinatorData!["name_en"] ?? "",
-                          style:
-                          const TextStyle(fontSize: 16),
-                        ),
+                          buildCopyRow(
+                              "رقم الموبايل:",
+                              coordinatorData!["phone"]
+                                  ?.toString() ?? "",
+                              "تم نسخ رقم الموبايل"),
 
-                        const SizedBox(height: 15),
+                          buildCopyRow(
+                              "البريد الإلكتروني:",
+                              coordinatorData!["email"] ?? "",
+                              "تم نسخ البريد الإلكتروني"),
 
-                        /// رقم الموبايل + نسخ
-                        Text(
-                          "رقم الموبايل:",
-                          style: TextStyle(
-                            fontWeight:
-                            FontWeight.bold,
-                            color: Colors.grey[700],
-                          ),
-                        ),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                coordinatorData!["phone"]
-                                    ?.toString() ??
-                                    "",
-                                style: const TextStyle(
-                                    fontSize: 16),
+                          const Spacer(),
+
+                          /// ⭐ زرار التقييم
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.black,
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                              ),
+                              onPressed: openRatingScreen,
+                              child: const Text(
+                                "تقييم الكوردينيتور",
+                                style: TextStyle(color: Colors.white),
                               ),
                             ),
-                            IconButton(
-                              icon: const Icon(Icons.copy),
-                              onPressed: () {
-                                final phone =
-                                    coordinatorData!["phone"]
-                                        ?.toString() ??
-                                        "";
-                                if (phone.isNotEmpty) {
-                                  copyToClipboard(
-                                      phone,
-                                      "تم نسخ رقم الموبايل");
-                                }
-                              },
-                            )
-                          ],
-                        ),
-
-                        const SizedBox(height: 15),
-
-                        /// الإيميل + نسخ
-                        Text(
-                          "البريد الإلكتروني:",
-                          style: TextStyle(
-                            fontWeight:
-                            FontWeight.bold,
-                            color: Colors.grey[700],
                           ),
-                        ),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                coordinatorData!["email"] ?? "",
-                                style: const TextStyle(
-                                    fontSize: 16),
-                              ),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.copy),
-                              onPressed: () {
-                                final email =
-                                    coordinatorData!["email"] ?? "";
-                                if (email.isNotEmpty) {
-                                  copyToClipboard(
-                                      email,
-                                      "تم نسخ البريد الإلكتروني");
-                                }
-                              },
-                            )
-                          ],
-                        ),
 
-                        const Spacer(),
+                          const SizedBox(height: 10),
 
-                        Row(
-                          children: [
-
-                            Expanded(
-                              child:
-                              ElevatedButton.icon(
-                                style: ElevatedButton
-                                    .styleFrom(
-                                  backgroundColor:
-                                  Colors.green,
-                                ),
-                                onPressed: () {
-                                  final phone =
-                                      coordinatorData![
-                                      "phone"]
-                                          ?.toString() ??
-                                          "";
-                                  if (phone.isNotEmpty) {
-                                    makePhoneCall(phone);
-                                  }
-                                },
-                                icon: const Icon(
-                                  Icons.phone,
-                                  color: Colors.white,
-                                ),
-                                label: const Text(
-                                  "اتصال مباشر",
-                                  style: TextStyle(
-                                      color:
-                                      Colors.white),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.green,
+                                  ),
+                                  onPressed: () {
+                                    makePhoneCall(
+                                      coordinatorData!["phone"].toString(),
+                                    );
+                                  },
+                                  icon: const Icon(Icons.phone, color: Colors.white),
+                                  label: const Text(
+                                    "اتصال",
+                                    style: TextStyle(color: Colors.white),
+                                  ),
                                 ),
                               ),
-                            ),
-
-                            const SizedBox(width: 10),
-
-                            Expanded(
-                              child:
-                              ElevatedButton.icon(
-                                style: ElevatedButton
-                                    .styleFrom(
-                                  backgroundColor:
-                                  Colors.blue,
-                                ),
-                                onPressed: () {
-                                  final email =
-                                      coordinatorData![
-                                      "email"] ??
-                                          "";
-                                  if (email.isNotEmpty) {
-                                    sendEmail(email);
-                                  }
-                                },
-                                icon: const Icon(
-                                  Icons.email,
-                                  color: Colors.white,
-                                ),
-                                label: const Text(
-                                  "إرسال إيميل",
-                                  style: TextStyle(
-                                      color:
-                                      Colors.white),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.blue,
+                                  ),
+                                  onPressed: () {
+                                    sendEmail(coordinatorData!["email"]);
+                                  },
+                                  icon: const Icon(Icons.email, color: Colors.white),
+                                  label: const Text(
+                                    "إيميل",
+                                    style: TextStyle(color: Colors.white),
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
-                      ],
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
-  @override
-  void dispose() {
-    searchController.dispose();
-    super.dispose();
+  Widget buildInfo(String title, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 15),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title,
+              style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[700])),
+          Text(value,
+              style: const TextStyle(fontSize: 16)),
+        ],
+      ),
+    );
+  }
+
+  Widget buildCopyRow(
+      String title, String value, String message) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 15),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title,
+              style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[700])),
+          Row(
+            children: [
+              Expanded(
+                child: Text(value,
+                    style: const TextStyle(fontSize: 16)),
+              ),
+              IconButton(
+                icon: const Icon(Icons.copy),
+                onPressed: () {
+                  if (value.isNotEmpty) {
+                    copyToClipboard(value, message);
+                  }
+                },
+              )
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }

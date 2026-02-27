@@ -35,20 +35,32 @@ class _LoginScreenState extends State<LoginScreen> {
     final role = prefs.getString("role");
 
     if (isLoggedIn && userId != null && role != null) {
+
       if (role == "technician") {
+
+        final userDoc = await _firestore.collection("users").doc(userId).get();
+        final userData = userDoc.data();
+        final technicianName = userData?["name"] ?? "";
+
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => TechnicianDashboard(technicianId: userId),
+            builder: (_) => TechnicianDashboard(
+              technicianId: userId,
+              technicianName: technicianName,
+            ),
           ),
         );
+
       } else if (role == "admin") {
+
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
             builder: (_) => AdminDashboard(adminId: userId),
           ),
         );
+
       }
     }
   }
@@ -90,6 +102,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final storedPassword = data["password"];
       final role = data["role"];
       final isActive = data["isActive"] ?? true;
+      final technicianName = data["name"] ?? "";
 
       if (!isActive) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -120,15 +133,21 @@ class _LoginScreenState extends State<LoginScreen> {
       await prefs.setString("role", role);
 
       if (role == "technician") {
+
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
             builder: (context) =>
-                TechnicianDashboard(technicianId: id),
+                TechnicianDashboard(
+                  technicianId: id,
+                  technicianName: technicianName,
+                ),
           ),
         );
+
       }
       else if (role == "admin") {
+
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -136,6 +155,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 AdminDashboard(adminId: id),
           ),
         );
+
       }
 
     } catch (e) {

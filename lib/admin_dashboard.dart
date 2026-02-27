@@ -5,6 +5,9 @@ import 'technicians_map_screen.dart';
 import 'add_technician_screen.dart';
 import 'visits_reports_screen.dart';
 import 'add_coordinator_screen.dart';
+import 'attendance_reports_screen.dart';
+import 'coordinator_ratings_admin_screen.dart';
+import 'admin_delete_visit_screen.dart'; // ✅ شاشة حذف تحديث زيارة
 import 'login_screen.dart';
 
 class AdminDashboard extends StatelessWidget {
@@ -15,7 +18,7 @@ class AdminDashboard extends StatelessWidget {
   // 🔴 تسجيل الخروج
   Future<void> _logout(BuildContext context) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.clear(); // مسح بيانات الجلسة
+    await prefs.clear();
 
     Navigator.pushAndRemoveUntil(
       context,
@@ -37,8 +40,6 @@ class AdminDashboard extends StatelessWidget {
           "لوحة تحكم الأدمن - $adminId",
           style: const TextStyle(color: Colors.black),
         ),
-
-        // ✅ زر تسجيل الخروج
         actions: [
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.black),
@@ -128,6 +129,57 @@ class AdminDashboard extends StatelessWidget {
                 );
               },
             ),
+
+            const SizedBox(height: 20),
+
+            _buildButton(
+              context,
+              title: "تقارير الحضور والانصراف",
+              icon: Icons.access_time,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const AttendanceReportsScreen(),
+                  ),
+                );
+              },
+            ),
+
+            const SizedBox(height: 20),
+
+            // ✅ زرار حذف تحديث زيارة (الجديد)
+            _buildButton(
+              context,
+              title: "حذف تحديث زيارة",
+              icon: Icons.delete_forever,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const AdminDeleteVisitScreen(),
+                  ),
+                );
+              },
+            ),
+
+            const SizedBox(height: 20),
+
+            // ⭐ تقييمات الكوردينيتور (كما هي بدون تعديل)
+            _buildButton(
+              context,
+              title: "تقييمات الكوردينيتور من الفنيين",
+              icon: Icons.star_rate_rounded,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) =>
+                    const CoordinatorRatingsAdminScreen(),
+                  ),
+                );
+              },
+            ),
           ],
         ),
       ),
@@ -213,7 +265,6 @@ class TechniciansListScreen extends StatelessWidget {
                 child: ListTile(
                   title: Text(data["name"] ?? "بدون اسم"),
                   subtitle: Text("ID: ${data["id"] ?? ""}"),
-
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -247,7 +298,6 @@ class TechniciansListScreen extends StatelessWidget {
                       ),
                     ],
                   ),
-
                   onTap: () {
                     Navigator.push(
                       context,
