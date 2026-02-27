@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'technician_dashboard.dart';
 import 'admin_dashboard.dart';
 
@@ -18,6 +19,51 @@ class _LoginScreenState extends State<LoginScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   bool isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkLoginStatus();
+  }
+
+  /// ✅ فحص هل المستخدم مسجل قبل كده
+  Future<void> _checkLoginStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final isLoggedIn = prefs.getBool("isLoggedIn") ?? false;
+    final userId = prefs.getString("userId");
+    final role = prefs.getString("role");
+
+    if (isLoggedIn && userId != null && role != null) {
+
+      if (role == "technician") {
+
+        final userDoc = await _firestore.collection("users").doc(userId).get();
+        final userData = userDoc.data();
+        final technicianName = userData?["name"] ?? "";
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => TechnicianDashboard(
+              technicianId: userId,
+              technicianName: technicianName,
+            ),
+          ),
+        );
+
+      } else if (role == "admin") {
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => AdminDashboard(adminId: userId),
+          ),
+        );
+
+      }
+    }
+  }
 
   Future<void> login() async {
 
@@ -56,6 +102,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final storedPassword = data["password"];
       final role = data["role"];
       final isActive = data["isActive"] ?? true;
+      final technicianName = data["name"] ?? "";
 
       if (!isActive) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -79,16 +126,28 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
+      /// ✅ حفظ الجلسة
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool("isLoggedIn", true);
+      await prefs.setString("userId", id);
+      await prefs.setString("role", role);
+
       if (role == "technician") {
+
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
             builder: (context) =>
-                TechnicianDashboard(technicianId: id),
+                TechnicianDashboard(
+                  technicianId: id,
+                  technicianName: technicianName,
+                ),
           ),
         );
+
       }
       else if (role == "admin") {
+
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -96,6 +155,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 AdminDashboard(adminId: id),
           ),
         );
+
       }
 
     } catch (e) {
@@ -131,7 +191,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   const SizedBox(height: 60),
 
-                  /// 🔴 Corporate Vodafone Title
                   Column(
                     children: const [
                       Text(
@@ -158,7 +217,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   const SizedBox(height: 60),
 
-                  /// 🟢 Professional Login Card
                   Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 28, vertical: 35),
@@ -187,7 +245,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                         const SizedBox(height: 30),
 
-                        /// ID Field
                         TextField(
                           controller: idController,
                           decoration: InputDecoration(
@@ -204,7 +261,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                         const SizedBox(height: 18),
 
-                        /// Password Field
                         TextField(
                           controller: passwordController,
                           obscureText: true,
@@ -222,7 +278,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                         const SizedBox(height: 35),
 
-                        /// Login Button
                         SizedBox(
                           width: double.infinity,
                           height: 55,

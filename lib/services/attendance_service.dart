@@ -23,98 +23,95 @@ class AttendanceService {
     final attendanceRef =
     _firestore.collection("attendance").doc(todayId);
 
-    final attendanceSnapshot = await attendanceRef.get();
+    /// 🔥 هنستخدم ID ثابت للزيارة علشان نمنع التكرار
+    final visitId =
+        "${technicianId}_${landline}_${now.year}${now.month}${now.day}";
 
-    /// ✅ 🔥 نجيب اسم الفني من users
-    String technicianName = "";
+    final visitRef =
+    _firestore.collection("visits").doc(visitId);
 
-    final userSnapshot = await _firestore
-        .collection("users")
-        .where("id", isEqualTo: technicianId)
-        .limit(1)
-        .get();
+    /// 🔥 Transaction علشان العملية تبقى آمنة
+    await _firestore.runTransaction((transaction) async {
 
-    if (userSnapshot.docs.isNotEmpty) {
-      technicianName =
-          userSnapshot.docs.first.data()["name"] ?? "";
-    }
+      final attendanceSnapshot =
+      await transaction.get(attendanceRef);
 
-    /// ✅ لو أول زيارة في اليوم → سجل حضور
-    if (!attendanceSnapshot.exists) {
-      await attendanceRef.set({
+      final visitSnapshot =
+      await transaction.get(visitRef);
+
+      /// ✅ 🔥 نجيب اسم الفني من users
+      String technicianName = "";
+
+      final userSnapshot = await _firestore
+          .collection("users")
+          .where("id", isEqualTo: technicianId)
+          .limit(1)
+          .get();
+
+      if (userSnapshot.docs.isNotEmpty) {
+        technicianName =
+            userSnapshot.docs.first.data()["name"] ?? "";
+      }
+
+      /// ✅ لو أول زيارة في اليوم → سجل حضور
+      if (!attendanceSnapshot.exists) {
+        transaction.set(attendanceRef, {
+          "technicianId": technicianId,
+          "technicianName": technicianName,
+          "date": FieldValue.serverTimestamp(),
+          "checkInTime": FieldValue.serverTimestamp(),
+          "checkInLat": latitude,
+          "checkInLng": longitude,
+          "isDayClosed": false,
+        });
+      }
+
+      /// ❌ لو الزيارة موجودة بالفعل
+      if (visitSnapshot.exists) {
+        throw Exception(
+            "تم تسجيل زيارة لهذا الرقم اليوم بالفعل — استخدم زر تعديل الزيارة");
+      }
+
+      /// 🔎 نتحقق لو فني تاني سجل نفس الرقم النهارده
+      final startOfDay =
+      DateTime(now.year, now.month, now.day);
+
+      final endOfDay =
+      DateTime(now.year, now.month, now.day, 23, 59, 59);
+
+      final otherTechVisit = await _firestore
+          .collection("visits")
+          .where("landline", isEqualTo: landline)
+          .where(
+        "createdAt",
+        isGreaterThanOrEqualTo:
+        Timestamp.fromDate(startOfDay),
+      )
+          .where(
+        "createdAt",
+        isLessThanOrEqualTo:
+        Timestamp.fromDate(endOfDay),
+      )
+          .limit(1)
+          .get();
+
+      if (otherTechVisit.docs.isNotEmpty) {
+        throw Exception(
+            "هذا العميل تم تسجيل زيارة له اليوم بواسطة فني آخر");
+      }
+
+      /// ➕ إنشاء زيارة جديدة (مرة واحدة فقط مستحيل تتكرر)
+      transaction.set(visitRef, {
         "technicianId": technicianId,
         "technicianName": technicianName,
-        "date": FieldValue.serverTimestamp(),
-        "checkInTime": FieldValue.serverTimestamp(),
-        "checkInLat": latitude,
-        "checkInLng": longitude,
-        "isDayClosed": false,
+        "landline": landline,
+        "visitType": visitType,
+        "status": updateStatus,
+        "notes": details,
+        "latitude": latitude,
+        "longitude": longitude,
+        "createdAt": FieldValue.serverTimestamp(),
       });
-    }
-
-    /// 🔥 نحدد بداية ونهاية اليوم
-    final startOfDay =
-    DateTime(now.year, now.month, now.day);
-
-    final endOfDay =
-    DateTime(now.year, now.month, now.day, 23, 59, 59);
-
-    /// 🔎 1️⃣ هل الفني نفسه سجل الرقم ده النهارده؟
-    final sameTechVisit = await _firestore
-        .collection("visits")
-        .where("technicianId", isEqualTo: technicianId)
-        .where("landline", isEqualTo: landline)
-        .where(
-      "createdAt",
-      isGreaterThanOrEqualTo:
-      Timestamp.fromDate(startOfDay),
-    )
-        .where(
-      "createdAt",
-      isLessThanOrEqualTo:
-      Timestamp.fromDate(endOfDay),
-    )
-        .limit(1)
-        .get();
-
-    if (sameTechVisit.docs.isNotEmpty) {
-      throw Exception(
-          "تم تسجيل زيارة لهذا الرقم اليوم بالفعل — استخدم زر تعديل الزيارة");
-    }
-
-    /// 🔎 2️⃣ هل فني تاني سجل نفس الرقم النهارده؟
-    final otherTechVisit = await _firestore
-        .collection("visits")
-        .where("landline", isEqualTo: landline)
-        .where(
-      "createdAt",
-      isGreaterThanOrEqualTo:
-      Timestamp.fromDate(startOfDay),
-    )
-        .where(
-      "createdAt",
-      isLessThanOrEqualTo:
-      Timestamp.fromDate(endOfDay),
-    )
-        .limit(1)
-        .get();
-
-    if (otherTechVisit.docs.isNotEmpty) {
-      throw Exception(
-          "هذا العميل تم تسجيل زيارة له اليوم بواسطة فني آخر");
-    }
-
-    /// ➕ إنشاء زيارة جديدة فقط
-    await _firestore.collection("visits").add({
-      "technicianId": technicianId,
-      "technicianName": technicianName,
-      "landline": landline,
-      "visitType": visitType,
-      "status": updateStatus,
-      "notes": details,
-      "latitude": latitude,
-      "longitude": longitude,
-      "createdAt": FieldValue.serverTimestamp(),
     });
   }
 

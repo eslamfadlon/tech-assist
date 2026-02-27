@@ -6,7 +6,8 @@ import 'monthly_stats_screen.dart';
 import 'coordinator_search_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'login_screen.dart';
-import 'edit_visit_screen.dart'; // ✅ استيراد شاشة التعديل
+import 'edit_visit_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 Future<Position> _determinePosition() async {
   bool serviceEnabled;
@@ -36,10 +37,12 @@ Future<Position> _determinePosition() async {
 
 class TechnicianDashboard extends StatefulWidget {
   final String technicianId;
+  final String technicianName;
 
   const TechnicianDashboard({
     super.key,
     required this.technicianId,
+    required this.technicianName,
   });
 
   @override
@@ -63,6 +66,31 @@ class _TechnicianDashboardState extends State<TechnicianDashboard> {
   bool isLoading = false;
 
   Stream<DocumentSnapshot>? _userStream;
+
+  // ✅ إضافة دالة السماح بالوقت
+  bool isVisitTimeAllowed() {
+    final now = DateTime.now();
+
+    final startAllowed = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      8,
+      0,
+    );
+
+    final endAllowed = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      23,
+      59,
+      59,
+    );
+
+    return now.isAfter(startAllowed.subtract(const Duration(seconds: 1))) &&
+        now.isBefore(endAllowed.add(const Duration(seconds: 1)));
+  }
 
   @override
   void initState() {
@@ -98,6 +126,19 @@ class _TechnicianDashboardState extends State<TechnicianDashboard> {
         }
       }
     });
+  }
+
+  Future<void> _logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const LoginScreen(),
+      ),
+          (route) => false,
+    );
   }
 
   InputDecoration customInputDecoration(String label) {
@@ -139,12 +180,18 @@ class _TechnicianDashboardState extends State<TechnicianDashboard> {
         backgroundColor: Colors.red.shade400,
         centerTitle: true,
         title: Text(
-          "لوحة تحكم الفني - ${widget.technicianId}",
+          "لوحة تحكم الفني - ${widget.technicianName}",
           style: const TextStyle(
             color: Colors.black,
             fontWeight: FontWeight.bold,
           ),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.black),
+            onPressed: _logout,
+          )
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
@@ -214,12 +261,25 @@ class _TechnicianDashboardState extends State<TechnicianDashboard> {
 
               const SizedBox(height: 25),
 
-              /// تسجيل زيارة
               ElevatedButton(
                 style: mainButtonStyle(),
                 onPressed: isLoading
                     ? null
                     : () async {
+
+                  if (!isVisitTimeAllowed()) {
+                    ScaffoldMessenger.of(context)
+                        .showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                            "⛔ تسجيل الزيارات متاح من 8 صباحًا حتى 12 منتصف الليل فقط"),
+                        backgroundColor:
+                        Colors.red,
+                      ),
+                    );
+                    return;
+                  }
+
                   if (landlineController.text
                       .trim()
                       .isEmpty ||
@@ -299,17 +359,17 @@ class _TechnicianDashboardState extends State<TechnicianDashboard> {
 
               const SizedBox(height: 10),
 
-              /// ✅ زرار التعديل الجديد (يفتح شاشة مستقلة)
               ElevatedButton(
                 style: mainButtonStyle(),
                 onPressed: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => EditVisitScreen(
-                        technicianId:
-                        widget.technicianId,
-                      ),
+                      builder: (_) =>
+                          EditVisitScreen(
+                            technicianId:
+                            widget.technicianId,
+                          ),
                     ),
                   );
                 },
@@ -366,7 +426,12 @@ class _TechnicianDashboardState extends State<TechnicianDashboard> {
                     context,
                     MaterialPageRoute(
                       builder: (context) =>
-                      const CoordinatorSearchScreen(),
+                          CoordinatorSearchScreen(
+                            technicianId:
+                            widget.technicianId,
+                            technicianName:
+                            widget.technicianName,
+                          ),
                     ),
                   );
                 },
