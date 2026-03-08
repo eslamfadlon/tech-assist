@@ -7,7 +7,8 @@ import 'visits_reports_screen.dart';
 import 'add_coordinator_screen.dart';
 import 'attendance_reports_screen.dart';
 import 'coordinator_ratings_admin_screen.dart';
-import 'admin_delete_visit_screen.dart'; // ✅ شاشة حذف تحديث زيارة
+import 'admin_delete_visit_screen.dart';
+import 'admin_inventory_dashboard_screen.dart'; // ✅ الجديد
 import 'login_screen.dart';
 
 class AdminDashboard extends StatelessWidget {
@@ -15,7 +16,6 @@ class AdminDashboard extends StatelessWidget {
 
   const AdminDashboard({super.key, required this.adminId});
 
-  // 🔴 تسجيل الخروج
   Future<void> _logout(BuildContext context) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
@@ -47,11 +47,12 @@ class AdminDashboard extends StatelessWidget {
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-
+        body: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
             _buildButton(
               context,
               title: "عرض جميع الفنيين",
@@ -148,7 +149,6 @@ class AdminDashboard extends StatelessWidget {
 
             const SizedBox(height: 20),
 
-            // ✅ زرار حذف تحديث زيارة (الجديد)
             _buildButton(
               context,
               title: "حذف تحديث زيارة",
@@ -165,7 +165,6 @@ class AdminDashboard extends StatelessWidget {
 
             const SizedBox(height: 20),
 
-            // ⭐ تقييمات الكوردينيتور (كما هي بدون تعديل)
             _buildButton(
               context,
               title: "تقييمات الكوردينيتور من الفنيين",
@@ -180,10 +179,29 @@ class AdminDashboard extends StatelessWidget {
                 );
               },
             ),
-          ],
-        ),
-      ),
-    );
+
+            const SizedBox(height: 20),
+
+            /// ✅ زر الجرد (المضاف فقط)
+            _buildButton(
+              context,
+              title: "الجرد وإدارة العهد",
+              icon: Icons.inventory,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) =>
+                    const AdminInventoryDashboardScreen(),
+                  ),
+                );
+              },
+            ),
+              ],
+            ), // Column
+          ),   // Padding
+        ),     // SingleChildScrollView
+    );       // Scaffold
   }
 
   Widget _buildButton(
@@ -240,12 +258,16 @@ class TechniciansListScreen extends StatelessWidget {
             .snapshots(),
         builder: (context, snapshot) {
 
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+          if (snapshot.connectionState ==
+              ConnectionState.waiting) {
+            return const Center(
+                child: CircularProgressIndicator());
           }
 
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(child: Text("لا يوجد فنيين"));
+          if (!snapshot.hasData ||
+              snapshot.data!.docs.isEmpty) {
+            return const Center(
+                child: Text("لا يوجد فنيين"));
           }
 
           final technicians = snapshot.data!.docs;
@@ -258,15 +280,20 @@ class TechniciansListScreen extends StatelessWidget {
               final data =
               techDoc.data() as Map<String, dynamic>;
 
-              bool isActive = data["isActive"] ?? true;
+              bool isActive =
+                  data["isActive"] ?? true;
 
               return Card(
-                margin: const EdgeInsets.all(10),
+                margin:
+                const EdgeInsets.all(10),
                 child: ListTile(
-                  title: Text(data["name"] ?? "بدون اسم"),
-                  subtitle: Text("ID: ${data["id"] ?? ""}"),
+                  title:
+                  Text(data["name"] ?? "بدون اسم"),
+                  subtitle:
+                  Text("ID: ${data["id"] ?? ""}"),
                   trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
+                    mainAxisSize:
+                    MainAxisSize.min,
                     children: [
 
                       Icon(
@@ -281,7 +308,8 @@ class TechniciansListScreen extends StatelessWidget {
                       const SizedBox(width: 8),
 
                       IconButton(
-                        icon: const Icon(Icons.edit,
+                        icon: const Icon(
+                            Icons.edit,
                             color: Colors.blue),
                         onPressed: () {
                           Navigator.push(
@@ -302,11 +330,7 @@ class TechniciansListScreen extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) =>
-                            TechniciansMapScreen(
-                              focusTechnicianId:
-                              techDoc.id,
-                            ),
+                        builder: (_) => const TechniciansMapScreen(),
                       ),
                     );
                   },

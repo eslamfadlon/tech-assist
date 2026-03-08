@@ -3,11 +3,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class TechniciansMapScreen extends StatefulWidget {
-  final String? focusTechnicianId;
+
+  final double? visitLatitude;
+  final double? visitLongitude;
 
   const TechniciansMapScreen({
     super.key,
-    this.focusTechnicianId,
+    this.visitLatitude,
+    this.visitLongitude,
   });
 
   @override
@@ -32,7 +35,9 @@ class _TechniciansMapScreenState
   }
 
   Future<void> _loadTechniciansLocations() async {
+
     try {
+
       final visitsSnapshot = await _firestore
           .collection("visits")
           .orderBy("createdAt", descending: true)
@@ -42,12 +47,15 @@ class _TechniciansMapScreenState
 
       Map<String, QueryDocumentSnapshot> latestVisits = {};
 
+      /// ✅ تجميع آخر زيارة لكل فني
       for (var doc in docs) {
+
         final data = doc.data();
         final technicianId = data["technicianId"];
 
         if (technicianId != null &&
             !latestVisits.containsKey(technicianId)) {
+
           latestVisits[technicianId] = doc;
         }
       }
@@ -55,12 +63,46 @@ class _TechniciansMapScreenState
       Set<Marker> markers = {};
       LatLng? focusPosition;
 
+      /// =========================================
+      /// ✅ لو جاى من زيارة → ركز على الزيارة نفسها
+      /// =========================================
+      if (widget.visitLatitude != null &&
+          widget.visitLongitude != null) {
+
+        focusPosition = LatLng(
+          widget.visitLatitude!,
+          widget.visitLongitude!,
+        );
+
+        markers.add(
+          Marker(
+            markerId: const MarkerId("visit_location"),
+            position: focusPosition,
+            infoWindow: const InfoWindow(
+              title: "موقع الزيارة",
+              snippet: "الموقع المسجل للعميل",
+            ),
+            icon: BitmapDescriptor.defaultMarkerWithHue(
+              BitmapDescriptor.hueAzure,
+            ),
+          ),
+        );
+      }
+
+      /// =========================================
+      /// ✅ عرض آخر مواقع الفنيين
+      /// =========================================
       for (var entry in latestVisits.entries) {
+
         final data =
         entry.value.data() as Map<String, dynamic>;
 
-        final lat = data["latitude"];
-        final lng = data["longitude"];
+        final double? lat =
+        (data["latitude"] as num?)?.toDouble();
+
+        final double? lng =
+        (data["longitude"] as num?)?.toDouble();
+
         final technicianName =
             data["technicianName"] ?? "فني";
 
@@ -73,16 +115,11 @@ class _TechniciansMapScreenState
               markerId: MarkerId(entry.key),
               position: position,
               infoWindow: InfoWindow(
-                title: technicianName, // ✅ الاسم بدل الـ ID
+                title: technicianName,
                 snippet: "آخر موقع مسجل",
               ),
             ),
           );
-
-          if (widget.focusTechnicianId != null &&
-              widget.focusTechnicianId == entry.key) {
-            focusPosition = position;
-          }
         }
       }
 
@@ -94,16 +131,23 @@ class _TechniciansMapScreenState
       await Future.delayed(
           const Duration(milliseconds: 300));
 
+      /// =========================================
+      /// ✅ تحريك الكاميرا
+      /// =========================================
       if (_mapController != null && _markers.isNotEmpty) {
 
         if (focusPosition != null) {
+
+          /// فتح موقع الزيارة مباشرة
           _mapController!.animateCamera(
             CameraUpdate.newLatLngZoom(
               focusPosition,
-              16,
+              17,
             ),
           );
+
         } else {
+
           final firstMarker = _markers.first;
 
           _mapController!.animateCamera(
@@ -124,6 +168,7 @@ class _TechniciansMapScreenState
 
   @override
   Widget build(BuildContext context) {
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("خريطة مواقع الفنيين"),
