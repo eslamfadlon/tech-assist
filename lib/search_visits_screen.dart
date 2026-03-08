@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'technicians_map_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class SearchVisitsScreen extends StatefulWidget {
   final String technicianId;
@@ -24,7 +25,27 @@ class _SearchVisitsScreenState
 
   bool isLoading = false;
   List<Map<String, dynamic>> visits = [];
+  Future<void> openNavigation(
+      double lat,
+      double lng,
+      ) async {
 
+    final Uri googleMapsUrl = Uri.parse(
+      "google.navigation:q=${lat},${lng}&mode=d",
+    );
+    if (await canLaunchUrl(googleMapsUrl)) {
+      await launchUrl(
+        googleMapsUrl,
+        mode: LaunchMode.externalApplication,
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("لا يمكن فتح Google Maps"),
+        ),
+      );
+    }
+  }
   // ===============================
   // ✅ SEARCH BY DAY (NEW)
   // ===============================
@@ -500,18 +521,13 @@ class _SearchVisitsScreenState
 
                     return GestureDetector(
                       onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder:
-                                (context) =>
-                                TechniciansMapScreen(
-                                  focusTechnicianId:
-                                  visit[
-                                  "technicianId"],
-                                ),
-                          ),
-                        );
+                        final lat =
+                        (visit["latitude"] ?? 0).toDouble();
+
+                        final lng =
+                        (visit["longitude"] ?? 0).toDouble();
+
+                        openNavigation(lat, lng);
                       },
                       child: Card(
                         margin:
@@ -573,6 +589,40 @@ class _SearchVisitsScreenState
 
                               Text(
                                   "location: ${visit["latitude"]}, ${visit["longitude"]}"),
+                              const SizedBox(height: 8),
+
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: TextButton.icon(
+                                  icon: const Icon(
+                                    Icons.map,
+                                    color: Colors.blue,
+                                  ),
+                                  label: const Text(
+                                    "فتح فى الخريطة",
+                                    style: TextStyle(
+                                      color: Colors.blue,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  onPressed: () {
+
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            TechniciansMapScreen(
+                                              visitLatitude:
+                                              (visit["latitude"] ?? 0).toDouble(),
+                                              visitLongitude:
+                                              (visit["longitude"] ?? 0).toDouble(),
+                                            ),
+                                      ),
+                                    );
+
+                                  },
+                                ),
+                              ),
                             ],
                           ),
                         ),

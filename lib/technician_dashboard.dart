@@ -8,7 +8,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'login_screen.dart';
 import 'edit_visit_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
+import 'custody_months_screen.dart';
 Future<Position> _determinePosition() async {
   bool serviceEnabled;
   LocationPermission permission;
@@ -67,26 +67,14 @@ class _TechnicianDashboardState extends State<TechnicianDashboard> {
 
   Stream<DocumentSnapshot>? _userStream;
 
-  // ✅ إضافة دالة السماح بالوقت
   bool isVisitTimeAllowed() {
     final now = DateTime.now();
 
-    final startAllowed = DateTime(
-      now.year,
-      now.month,
-      now.day,
-      8,
-      0,
-    );
+    final startAllowed =
+    DateTime(now.year, now.month, now.day, 8, 0);
 
-    final endAllowed = DateTime(
-      now.year,
-      now.month,
-      now.day,
-      23,
-      59,
-      59,
-    );
+    final endAllowed =
+    DateTime(now.year, now.month, now.day, 23, 59, 59);
 
     return now.isAfter(startAllowed.subtract(const Duration(seconds: 1))) &&
         now.isBefore(endAllowed.add(const Duration(seconds: 1)));
@@ -201,6 +189,10 @@ class _TechnicianDashboardState extends State<TechnicianDashboard> {
             CrossAxisAlignment.stretch,
             children: [
 
+
+
+              const SizedBox(height: 20),
+
               TextField(
                 controller: landlineController,
                 keyboardType: TextInputType.phone,
@@ -266,7 +258,6 @@ class _TechnicianDashboardState extends State<TechnicianDashboard> {
                 onPressed: isLoading
                     ? null
                     : () async {
-
                   if (!isVisitTimeAllowed()) {
                     ScaffoldMessenger.of(context)
                         .showSnackBar(
@@ -298,8 +289,7 @@ class _TechnicianDashboardState extends State<TechnicianDashboard> {
                     return;
                   }
 
-                  setState(
-                          () => isLoading = true);
+                  setState(() => isLoading = true);
 
                   try {
                     Position position =
@@ -310,16 +300,13 @@ class _TechnicianDashboardState extends State<TechnicianDashboard> {
                       technicianId:
                       widget.technicianId,
                       landline:
-                      landlineController
-                          .text
+                      landlineController.text
                           .trim(),
-                      visitType:
-                      selectedType,
+                      visitType: selectedType,
                       updateStatus:
                       selectedUpdate,
                       details:
-                      detailsController
-                          .text
+                      detailsController.text
                           .trim(),
                       latitude:
                       position.latitude,
@@ -365,11 +352,10 @@ class _TechnicianDashboardState extends State<TechnicianDashboard> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) =>
-                          EditVisitScreen(
-                            technicianId:
-                            widget.technicianId,
-                          ),
+                      builder: (_) => EditVisitScreen(
+                        technicianId:
+                        widget.technicianId,
+                      ),
                     ),
                   );
                 },
@@ -438,6 +424,26 @@ class _TechnicianDashboardState extends State<TechnicianDashboard> {
                 child:
                 const Text("بحث عن الكوردينيتور"),
               ),
+              const SizedBox(height: 15), // ✅ فصل بين الزرين
+              // 👇👇👇 زرار الجرد الشهري الجديد 👇👇👇
+              ElevatedButton(
+                style: mainButtonStyle(),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => CustodyMonthsScreen(
+                        technicianId: widget.technicianId,
+                        isAdmin: false,
+                      ),
+                    ),
+                  );
+                },
+                child: const Text("الجرد الشهري"),
+              ),
+
+              const SizedBox(height: 20),
+
             ],
           ),
         ),
